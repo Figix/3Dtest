@@ -40,10 +40,13 @@ Vertex transformedCircle[360];  // 화면에 그려질 원
 Transform transform;  //world 행렬이 될 transform
 
 //<문제>////////전역변수 쓰는곳////////////////////////////////////////////////////////////
-
-        
-
-
+float rotation = 0.0f;
+float rotationDir = 1.0f;
+float translateX = 0.0f;
+float translateY = 0.0f;
+float translateDir = 1.0f;
+float scale = 1.0f;
+float scaleDir = 1.0f;
  //////////////////////////////////////////////////////////////////////////////////////////
 
 void Init();
@@ -153,9 +156,44 @@ void Update()
         //3. Scale은 초당 0.01씩 최대 1.3배까지 늘어났다가 0.7배까지 줄어들도록 만드시오 (반복)
         //   (1.3배 이상이 되면 줄어들고 0.7배 이하가 되면 다시 늘어나게 만드시오)
 
-      
         //////////////////////////////////////////////////////////////////////////////////////////
+
+        /*회전*/
+        transform.rotation = glm::mat3(
+            glm::cos(glm::radians(rotation)), -glm::sin(glm::radians(rotation)), 0,
+            glm::sin(glm::radians(rotation)), glm::cos(glm::radians(rotation)), 0,
+            0, 0, 1
+        );
+        rotation = rotation + 1.0f*rotationDir;
+        if (rotation >= 360) { rotation = 0.0f; }
         
+        /*이동*/ //아래 주석친 코드는 왜 이동이 구현이 안되는지 모르겠음
+        transform.translate = glm::mat3(   
+            1, 0, 0,    //x
+            0, 1, 0,    //y
+            translateX, translateY, 1
+        );
+        //transform.translate = glm::mat3(
+        //    1, 0, translateX,    //x
+        //    0, 1, translateY,    //y
+        //    0, 0, 1
+        //);
+        translateX = translateX + (0.001f*translateDir);
+        if (translateX * translateX >= 0.25f) {
+            translateDir=-translateDir;
+            rotationDir = -rotationDir;
+        }
+        cout << translateX;
+
+        /*스케일*/
+        transform.scale = glm::mat3(
+            scale, 0, 0,
+            0, scale, 0,
+            0, 0, 1
+        );
+        scale = scale + (0.01 * scaleDir / 60); //60프레임 기준으로 프로그램이 돌아가기 때문에
+        if (scale >= 1.3 || scale <= 0.7) { scaleDir = scaleDir * -1.0f; }
+
         for (int i = 0; i < 360; i++)
         {
             transformedCircle[i].pos = transform.translate * transform.rotation * transform.scale * circle[i].pos;
@@ -178,25 +216,11 @@ void Update()
         glBegin(GL_LINE_STRIP);
 
         int a = 0;
-        glColor4f(transformedStar[a].r, transformedStar[a].g, transformedStar[a].b, transformedStar[a].a);
-        glVertex3f(transformedStar[a].pos.x, transformedStar[a].pos.y, 0.0f);
-        a = 3;
-        glColor4f(transformedStar[a].r, transformedStar[a].g, transformedStar[a].b, transformedStar[a].a);
-        glVertex3f(transformedStar[a].pos.x, transformedStar[a].pos.y, 0.0f);
-        a = 1;
-        glColor4f(transformedStar[a].r, transformedStar[a].g, transformedStar[a].b, transformedStar[a].a);
-        glVertex3f(transformedStar[a].pos.x, transformedStar[a].pos.y, 0.0f);
-        a = 4;
-        glColor4f(transformedStar[a].r, transformedStar[a].g, transformedStar[a].b, transformedStar[a].a);
-        glVertex3f(transformedStar[a].pos.x, transformedStar[a].pos.y, 0.0f);
-        a = 2;
-        glColor4f(transformedStar[a].r, transformedStar[a].g, transformedStar[a].b, transformedStar[a].a);
-        glVertex3f(transformedStar[a].pos.x, transformedStar[a].pos.y, 0.0f);
-
-        a = 0;
-        glColor4f(transformedStar[a].r, transformedStar[a].g, transformedStar[a].b, transformedStar[a].a);
-        glVertex3f(transformedStar[a].pos.x, transformedStar[a].pos.y, 0.0f);
-        glEnd();
+        for (int i = 0; i <= 10; i=i+2) { // 0->2->4->1->3->0
+            a = i % 5;
+            glColor4f(transformedStar[a].r, transformedStar[a].g, transformedStar[a].b, transformedStar[a].a);
+            glVertex3f(transformedStar[a].pos.x, transformedStar[a].pos.y, 0.0f);
+        }
             
         //원그리기
         glBegin(GL_LINE_STRIP);
@@ -214,17 +238,18 @@ void Update()
         glfwPollEvents();
 
         //렌더시간 측정
-        renderDuration = chrono::system_clock::now() - startRenderTimePoint;
-        startRenderTimePoint = chrono::system_clock::now();
+        renderDuration = chrono::system_clock::now() - startRenderTimePoint;    //렌더링하는데 걸린 시간 init마지막->update안 계산과 그리기 종료후 측정 확인
+        startRenderTimePoint = chrono::system_clock::now();                     //재측정 시작 구간
 
-        float fps = 1.0 / renderDuration.count();
+        float fps = 1.0 / renderDuration.count();   
         if (isFirstFrame == true)
         {
             isFirstFrame = false;
             continue;
         }
-        if(renderDuration.count() < (1.0f / 60.0f))
+        if(renderDuration.count() < (1.0f / 60.0f)) //60프레임보다 더 빠를시 조건문 실행
             this_thread::sleep_for(chrono::milliseconds( (int)(((1.0f/60.0f) - renderDuration.count())*1000) ));
+            //60프레임 단위보다 더 작은 단위를 빼서 그 차만큼 멈춰서 60프레임 기준으로 맞춤
         string fps_s = "FPS : " + to_string(fps);
         cout << fps_s <<endl;
         
